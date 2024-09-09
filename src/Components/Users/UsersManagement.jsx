@@ -1,45 +1,75 @@
-// src/components/UsersManagement/UsersManagement.jsx
 import { useState, useEffect } from 'react';
-import { TextField, Button, List, ListItem, ListItemText, Paper, Typography, Box } from '@mui/material';
+import { TextField, Button, List, ListItem, ListItemText, Paper, Typography, Box, Snackbar } from '@mui/material';
+import { Alert } from '@mui/material';
 import { fetchUsers, addUser, updateUser, deleteUser } from '../../Firebase/FirestoreService'; // Adjust imports as necessary
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
   const [newUser, setNewUser] = useState('');
   const [editUser, setEditUser] = useState({ id: '', name: '' });
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
   useEffect(() => {
-    // Fetch users from Firestore
-    fetchUsers()
-      .then(setUsers)
-      .catch(console.error);
+    const fetchUserData = async () => {
+      try {
+        const data = await fetchUsers();
+        setUsers(data);
+      } catch (error) {
+        showSnackbar('Error fetching users', 'error');
+      }
+    };
+    fetchUserData();
   }, []);
 
-  const handleAdd = () => {
-    addUser(newUser)
-      .then(() => {
+  const handleAdd = async () => {
+    if (newUser) {
+      try {
+        await addUser(newUser);
         setNewUser('');
-        return fetchUsers();
-      })
-      .then(setUsers)
-      .catch(console.error);
+        const data = await fetchUsers();
+        setUsers(data);
+        showSnackbar('User added successfully', 'success');
+      } catch (error) {
+        showSnackbar('Error adding user', 'error');
+      }
+    }
   };
 
-  const handleUpdate = () => {
-    updateUser(editUser.id, { name: editUser.name })
-      .then(() => {
+  const handleUpdate = async () => {
+    if (editUser.id && editUser.name) {
+      try {
+        await updateUser(editUser.id, { name: editUser.name });
         setEditUser({ id: '', name: '' });
-        return fetchUsers();
-      })
-      .then(setUsers)
-      .catch(console.error);
+        const data = await fetchUsers();
+        setUsers(data);
+        showSnackbar('User updated successfully', 'success');
+      } catch (error) {
+        showSnackbar('Error updating user', 'error');
+      }
+    }
   };
 
-  const handleDelete = (id) => {
-    deleteUser(id)
-      .then(() => fetchUsers())
-      .then(setUsers)
-      .catch(console.error);
+  const handleDelete = async (id) => {
+    try {
+      await deleteUser(id);
+      const data = await fetchUsers();
+      setUsers(data);
+      showSnackbar('User deleted successfully', 'success');
+    } catch (error) {
+      showSnackbar('Error deleting user', 'error');
+    }
+  };
+
+  const showSnackbar = (message, severity) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
   };
 
   return (
@@ -86,6 +116,16 @@ const UsersManagement = () => {
           </ListItem>
         ))}
       </List>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
