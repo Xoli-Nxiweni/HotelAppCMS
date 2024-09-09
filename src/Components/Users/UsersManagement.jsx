@@ -1,45 +1,64 @@
-// src/components/UsersManagement/UsersManagement.jsx
 import { useState, useEffect } from 'react';
 import { TextField, Button, List, ListItem, ListItemText, Paper, Typography, Box } from '@mui/material';
-import { fetchUsers, addUser, updateUser, deleteUser } from '../../Firebase/FirestoreService'; // Adjust imports as necessary
+import { fetchUsers, addUser, updateUser, deleteUser } from '../../Firebase/FirestoreService';
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
-  const [newUser, setNewUser] = useState('');
-  const [editUser, setEditUser] = useState({ id: '', name: '' });
+  const [newUser, setNewUser] = useState({ displayName: '', email: '' });
+  const [editUser, setEditUser] = useState({ id: '', displayName: '' });
 
   useEffect(() => {
     // Fetch users from Firestore
-    fetchUsers()
-      .then(setUsers)
-      .catch(console.error);
+    const loadUsers = async () => {
+      try {
+        const usersList = await fetchUsers();
+        setUsers(usersList);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    
+    loadUsers();
   }, []);
 
-  const handleAdd = () => {
-    addUser(newUser)
-      .then(() => {
-        setNewUser('');
-        return fetchUsers();
-      })
-      .then(setUsers)
-      .catch(console.error);
+  const handleAdd = async () => {
+    if (newUser.displayName && newUser.email) {
+      try {
+        await addUser(newUser);
+        setNewUser({ displayName: '', email: '' });
+        const updatedUsers = await fetchUsers();
+        setUsers(updatedUsers);
+      } catch (error) {
+        console.error('Error adding user:', error);
+      }
+    } else {
+      console.warn('Please provide both display name and email.');
+    }
   };
 
-  const handleUpdate = () => {
-    updateUser(editUser.id, { name: editUser.name })
-      .then(() => {
-        setEditUser({ id: '', name: '' });
-        return fetchUsers();
-      })
-      .then(setUsers)
-      .catch(console.error);
+  const handleUpdate = async () => {
+    if (editUser.id && editUser.displayName) {
+      try {
+        await updateUser(editUser.id, { displayName: editUser.displayName });
+        setEditUser({ id: '', displayName: '' });
+        const updatedUsers = await fetchUsers();
+        setUsers(updatedUsers);
+      } catch (error) {
+        console.error('Error updating user:', error);
+      }
+    } else {
+      console.warn('Please provide a valid ID and display name for the update.');
+    }
   };
 
-  const handleDelete = (id) => {
-    deleteUser(id)
-      .then(() => fetchUsers())
-      .then(setUsers)
-      .catch(console.error);
+  const handleDelete = async (id) => {
+    try {
+      await deleteUser(id);
+      const updatedUsers = await fetchUsers();
+      setUsers(updatedUsers);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
   };
 
   return (
@@ -49,9 +68,16 @@ const UsersManagement = () => {
           Add New User
         </Typography>
         <TextField
-          label="New User"
-          value={newUser}
-          onChange={(e) => setNewUser(e.target.value)}
+          label="Display Name"
+          value={newUser.displayName}
+          onChange={(e) => setNewUser({ ...newUser, displayName: e.target.value })}
+          fullWidth
+          sx={{ marginBottom: 1 }}
+        />
+        <TextField
+          label="Email"
+          value={newUser.email}
+          onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
           fullWidth
           sx={{ marginBottom: 1 }}
         />
@@ -65,9 +91,9 @@ const UsersManagement = () => {
           Edit User
         </Typography>
         <TextField
-          label="Edit User Name"
-          value={editUser.name}
-          onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
+          label="Display Name"
+          value={editUser.displayName}
+          onChange={(e) => setEditUser({ ...editUser, displayName: e.target.value })}
           fullWidth
           sx={{ marginBottom: 1 }}
         />
@@ -79,7 +105,10 @@ const UsersManagement = () => {
       <List>
         {users.map((user) => (
           <ListItem key={user.id}>
-            <ListItemText primary={user.name} />
+            <ListItemText 
+              primary={user.displayName} 
+              secondary={user.email}
+            />
             <Button variant="outlined" color="error" onClick={() => handleDelete(user.id)}>
               Delete
             </Button>
