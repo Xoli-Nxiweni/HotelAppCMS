@@ -1,64 +1,75 @@
 import { useState, useEffect } from 'react';
-import { TextField, Button, List, ListItem, ListItemText, Paper, Typography, Box } from '@mui/material';
-import { fetchUsers, addUser, updateUser, deleteUser } from '../../Firebase/FirestoreService';
+import { TextField, Button, List, ListItem, ListItemText, Paper, Typography, Box, Snackbar } from '@mui/material';
+import { Alert } from '@mui/material';
+import { fetchUsers, addUser, updateUser, deleteUser } from '../../Firebase/FirestoreService'; // Adjust imports as necessary
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
-  const [newUser, setNewUser] = useState({ displayName: '', email: '' });
-  const [editUser, setEditUser] = useState({ id: '', displayName: '' });
+  const [newUser, setNewUser] = useState('');
+  const [editUser, setEditUser] = useState({ id: '', name: '' });
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
   useEffect(() => {
-    // Fetch users from Firestore
-    const loadUsers = async () => {
+    const fetchUserData = async () => {
       try {
-        const usersList = await fetchUsers();
-        setUsers(usersList);
+        const data = await fetchUsers();
+        setUsers(data);
       } catch (error) {
-        console.error('Error fetching users:', error);
+        showSnackbar('Error fetching users', 'error', error);
       }
     };
-    
-    loadUsers();
+    fetchUserData();
   }, []);
 
   const handleAdd = async () => {
-    if (newUser.displayName && newUser.email) {
+    if (newUser) {
       try {
         await addUser(newUser);
-        setNewUser({ displayName: '', email: '' });
-        const updatedUsers = await fetchUsers();
-        setUsers(updatedUsers);
+        setNewUser('');
+        const data = await fetchUsers();
+        setUsers(data);
+        showSnackbar('User added successfully', 'success');
       } catch (error) {
-        console.error('Error adding user:', error);
+        showSnackbar('Error adding user', 'error', error);
       }
-    } else {
-      console.warn('Please provide both display name and email.');
     }
   };
 
   const handleUpdate = async () => {
-    if (editUser.id && editUser.displayName) {
+    if (editUser.id && editUser.name) {
       try {
-        await updateUser(editUser.id, { displayName: editUser.displayName });
-        setEditUser({ id: '', displayName: '' });
-        const updatedUsers = await fetchUsers();
-        setUsers(updatedUsers);
+        await updateUser(editUser.id, { name: editUser.name });
+        setEditUser({ id: '', name: '' });
+        const data = await fetchUsers();
+        setUsers(data);
+        showSnackbar('User updated successfully', 'success');
       } catch (error) {
-        console.error('Error updating user:', error);
+        showSnackbar('Error updating user', 'error', error);
       }
-    } else {
-      console.warn('Please provide a valid ID and display name for the update.');
     }
   };
 
   const handleDelete = async (id) => {
     try {
       await deleteUser(id);
-      const updatedUsers = await fetchUsers();
-      setUsers(updatedUsers);
+      const data = await fetchUsers();
+      setUsers(data);
+      showSnackbar('User deleted successfully', 'success');
     } catch (error) {
-      console.error('Error deleting user:', error);
+      showSnackbar('Error deleting user', 'error', error);
     }
+  };
+
+  const showSnackbar = (message, severity) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
   };
 
   return (
@@ -115,6 +126,16 @@ const UsersManagement = () => {
           </ListItem>
         ))}
       </List>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
