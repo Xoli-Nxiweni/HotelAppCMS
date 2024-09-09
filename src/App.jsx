@@ -6,6 +6,7 @@ import { auth } from './Firebase/Firebase';
 import Login from './Components/Auth/Login';
 import Dashboard from './Components/Dashboard/Dashboard';
 import { AppBar, Toolbar, Typography, Button, Container } from '@mui/material';
+import './App.css'
 
 const App = () => {
   const [user, setUser] = useState(true);
@@ -31,7 +32,9 @@ const App = () => {
       <AppBar position="static" color="primary">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            My Application
+          <div className="logo">
+            <h1>Rest<span>Q</span>uest</h1>
+          </div>
           </Typography>
           {user && (
             <Button color="inherit" onClick={handleLogout}>

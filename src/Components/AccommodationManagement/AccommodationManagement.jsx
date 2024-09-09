@@ -1,260 +1,316 @@
 import { useState, useEffect } from 'react';
-import { fetchCollection, addDocument, updateDocument, deleteDocument } from '../../Firebase/FirestoreService';
-import { Button, TextField, List, ListItem, Typography, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Snackbar, Alert, Checkbox, FormControlLabel } from '@mui/material';
+import {
+  Button,
+  TextField,
+  List,
+  ListItem,
+  Typography,
+  Card,
+  CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Snackbar,
+  Alert,
+  Checkbox,
+  FormControlLabel,
+  CircularProgress,
+} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import { addDoc, collection, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../Firebase/Firebase';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import { fetchCollection } from '../../Firebase/FirestoreService';
+
+// Initial state for an accommodation
+const initialAccommodationState = {
+  heading: '',
+  description: '',
+  discountedPrice: '',
+  size: '',
+  beds: '',
+  bathrooms: '',
+  amenities: '',
+  checkIn: '',
+  checkOut: '',
+  guests: '',
+  nonSmoking: false,
+  reviews: '',
+  view: '',
+  nights: '',
+  isFavorite: false,
+  isBooked: false,
+  image: '', // For image URL
+};
 
 const AccommodationManagement = () => {
   const [accommodations, setAccommodations] = useState([]);
-  const [newAccommodation, setNewAccommodation] = useState({
-    heading: '',
-    description: '',
-    price: '',
-    size: '',
-    beds: '',
-    bathrooms: '',
-    checkIn: '',
-    checkOut: '',
-    guests: '',
-    nonSmoking: false,
-    reviews: '',
-    view: '',
-    nights: '',
-    isFavorite: false,
-    isBooked: false,
-    image: ''
-  });
-  const [editAccommodation, setEditAccommodation] = useState({
-    id: '',
-    heading: '',
-    description: '',
-    price: '',
-    size: '',
-    beds: '',
-    bathrooms: '',
-    checkIn: '',
-    checkOut: '',
-    guests: '',
-    nonSmoking: false,
-    reviews: '',
-    view: '',
-    nights: '',
-    isFavorite: false,
-    isBooked: false,
-    image: ''
-  });
+  const [newAccommodation, setNewAccommodation] = useState(initialAccommodationState);
+  const [editAccommodation, setEditAccommodation] = useState(initialAccommodationState);
+  const [viewAccommodation, setViewAccommodation] = useState(null);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [openViewDialog, setOpenViewDialog] = useState(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchAccommodations = async () => {
+      setLoading(true);
       try {
         const data = await fetchCollection('hotelRooms');
         setAccommodations(data);
       } catch (error) {
-        console.error('Error fetching accommodations:', error);
+        showSnackbar('Error fetching accommodations:', 'error', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchAccommodations();
   }, []);
 
+  const handleChange = (e, setter) => {
+    const { name, value, type, checked } = e.target;
+    setter((prevState) => ({
+      ...prevState,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
   const handleAdd = async () => {
-    if (newAccommodation.heading) {
-      await addDocument('rooms', newAccommodation);
-      setNewAccommodation({
-        heading: '',
-        description: '',
-        price: '',
-        size: '',
-        beds: '',
-        bathrooms: '',
-        checkIn: '',
-        checkOut: '',
-        guests: '',
-        nonSmoking: false,
-        reviews: '',
-        view: '',
-        nights: '',
-        isFavorite: false,
-        isBooked: false,
-        image: ''
-      });
+    if (!newAccommodation.heading || !newAccommodation.discountedPrice) {
+      showSnackbar('Heading and discountedPrice are required!', 'error');
+      return;
+    }
+  
+    setLoading(true);
+    try {
+      const docRef = await addDoc(collection(db, 'hotelRooms'), newAccommodation);
+      setAccommodations(prev => [...prev, { ...newAccommodation, id: docRef.id }]);
+      setNewAccommodation(initialAccommodationState);
       setOpenAddDialog(false);
-      await updateAccommodations();
       showSnackbar('Accommodation added successfully!');
+    } catch (error) {
+      showSnackbar(`Error adding accommodation: ${error.message}`, 'error');
+    } finally {
+      setLoading(false);
     }
   };
+  
 
   const handleUpdate = async () => {
-    if (editAccommodation.id) {
-      await updateDocument('rooms', editAccommodation.id, {
+    if (!editAccommodation.heading || !editAccommodation.discountedPrice) {
+      showSnackbar('Heading and discountedPrice are required!', 'error');
+      return;
+    }
+  
+    setLoading(true);
+    try {
+      // Ensure the document ID is correct
+      const docRef = doc(db, 'hotelRooms', editAccommodation.id);
+      await updateDoc(docRef, {
         heading: editAccommodation.heading,
-        description: editAccommodation.description,
-        price: editAccommodation.price,
-        size: editAccommodation.size,
-        beds: editAccommodation.beds,
-        bathrooms: editAccommodation.bathrooms,
-        checkIn: editAccommodation.checkIn,
-        checkOut: editAccommodation.checkOut,
-        guests: editAccommodation.guests,
-        nonSmoking: editAccommodation.nonSmoking,
-        reviews: editAccommodation.reviews,
-        view: editAccommodation.view,
-        nights: editAccommodation.nights,
-        isFavorite: editAccommodation.isFavorite,
-        isBooked: editAccommodation.isBooked,
-        image: editAccommodation.image
+        discountedPrice: editAccommodation.discountedPrice,
+        // Include any other fields you need to update
       });
-      setEditAccommodation({
-        id: '',
-        heading: '',
-        description: '',
-        price: '',
-        size: '',
-        beds: '',
-        bathrooms: '',
-        checkIn: '',
-        checkOut: '',
-        guests: '',
-        nonSmoking: false,
-        reviews: '',
-        view: '',
-        nights: '',
-        isFavorite: false,
-        isBooked: false,
-        image: ''
-      });
+  
+      // Update local state
+      setAccommodations(prev =>
+        prev.map(acc =>
+          acc.id === editAccommodation.id
+            ? { ...acc, heading: editAccommodation.heading, discountedPrice: editAccommodation.discountedPrice }
+            : acc
+        )
+      );
+  
+      // Reset state and close dialog
+      setEditAccommodation(initialAccommodationState);
       setOpenEditDialog(false);
-      await updateAccommodations();
       showSnackbar('Accommodation updated successfully!');
+    } catch (error) {
+      showSnackbar(`Error updating accommodation: ${error.message}`, 'error');
+    } finally {
+      setLoading(false);
     }
   };
+  
+  
 
   const handleDelete = async () => {
-    if (itemToDelete) {
-      await deleteDocument('rooms', itemToDelete.id);
+    if (!itemToDelete) return;
+  
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'hotelRooms', itemToDelete.id));
+      setAccommodations(prev => prev.filter(acc => acc.id !== itemToDelete.id));
       setOpenConfirmDialog(false);
-      await updateAccommodations();
       showSnackbar('Accommodation deleted successfully!');
+    } catch (error) {
+      showSnackbar(`Error deleting accommodation: ${error.message}`, 'error');
+    } finally {
+      setLoading(false);
     }
   };
+  
 
-  const updateAccommodations = async () => {
-    const data = await fetchCollection('rooms');
-    setAccommodations(data);
-  };
-
-  const showSnackbar = (message) => {
+  const showSnackbar = (message, severity = 'success') => {
     setSnackbarMessage(message);
     setSnackbarOpen(true);
   };
 
   return (
     <div>
-      <Button onClick={() => setOpenAddDialog(true)} variant="contained" color="primary" startIcon={<AddIcon />}>
+      <Button
+        onClick={() => setOpenAddDialog(true)}
+        variant="contained"
+        color="primary"
+        startIcon={<AddIcon />}
+        aria-label="Add Accommodation"
+      >
         Add Accommodation
       </Button>
 
-      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="md" fullWidth>
+      {loading && <CircularProgress />}
+
+      {/* Add Accommodation Dialog */}
+      <Dialog
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Add Accommodation</DialogTitle>
         <DialogContent>
           <TextField
-            label="Accommodation Name"
+            name="heading"
+            label="Heading"
             value={newAccommodation.heading}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, heading: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="description"
             label="Description"
             value={newAccommodation.description}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, description: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
+            multiline
+            rows={4}
           />
           <TextField
-            label="Price"
-            value={newAccommodation.price}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, price: e.target.value })}
+            name="discountedPrice"
+            label="discountedPrice"
+            value={newAccommodation.discountedPrice}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="size"
             label="Size"
             value={newAccommodation.size}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, size: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="beds"
             label="Beds"
             value={newAccommodation.beds}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, beds: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="bathrooms"
             label="Bathrooms"
             value={newAccommodation.bathrooms}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, bathrooms: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
-            label="Check-in Date"
-            type="date"
+            name="checkIn"
+            label="Check-In Date"
             value={newAccommodation.checkIn}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, checkIn: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="Check-out Date"
             type="date"
-            value={newAccommodation.checkOut}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, checkOut: e.target.value })}
-            fullWidth
-            margin="normal"
             InputLabelProps={{ shrink: true }}
           />
           <TextField
+            name="checkOut"
+            label="Check-Out Date"
+            value={newAccommodation.checkOut}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
+            fullWidth
+            margin="normal"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            name="guests"
             label="Guests"
             value={newAccommodation.guests}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, guests: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="amenities"
+            label="Amenities"
+            value={newAccommodation.amenities}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
+            fullWidth
+            margin="normal"
+            multiline
+            rows={2}
+          />
+
+          <TextField
+            name="reviews"
             label="Reviews"
             value={newAccommodation.reviews}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, reviews: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="view"
             label="View"
             value={newAccommodation.view}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, view: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="nights"
             label="Nights"
             value={newAccommodation.nights}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, nights: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="image"
             label="Image URL"
             value={newAccommodation.image}
-            onChange={(e) => setNewAccommodation({ ...newAccommodation, image: e.target.value })}
+            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
             margin="normal"
           />
@@ -262,7 +318,8 @@ const AccommodationManagement = () => {
             control={
               <Checkbox
                 checked={newAccommodation.nonSmoking}
-                onChange={(e) => setNewAccommodation({ ...newAccommodation, nonSmoking: e.target.checked })}
+                onChange={(e) => handleChange(e, setNewAccommodation)}
+                name="nonSmoking"
               />
             }
             label="Non-smoking"
@@ -271,7 +328,8 @@ const AccommodationManagement = () => {
             control={
               <Checkbox
                 checked={newAccommodation.isFavorite}
-                onChange={(e) => setNewAccommodation({ ...newAccommodation, isFavorite: e.target.checked })}
+                onChange={(e) => handleChange(e, setNewAccommodation)}
+                name="isFavorite"
               />
             }
             label="Favorite"
@@ -280,14 +338,15 @@ const AccommodationManagement = () => {
             control={
               <Checkbox
                 checked={newAccommodation.isBooked}
-                onChange={(e) => setNewAccommodation({ ...newAccommodation, isBooked: e.target.checked })}
+                onChange={(e) => handleChange(e, setNewAccommodation)}
+                name="isBooked"
               />
             }
             label="Booked"
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAddDialog(false)} color="primary">
+          <Button onClick={() => setOpenAddDialog(false)} color="secondary">
             Cancel
           </Button>
           <Button onClick={handleAdd} color="primary">
@@ -296,101 +355,138 @@ const AccommodationManagement = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="md" fullWidth>
+      {/* Edit Accommodation Dialog */}
+      <Dialog
+        open={openEditDialog}
+        onClose={() => setOpenEditDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Edit Accommodation</DialogTitle>
         <DialogContent>
           <TextField
-            label="Accommodation Name"
+            name="heading"
+            label="Heading"
             value={editAccommodation.heading}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, heading: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="description"
             label="Description"
             value={editAccommodation.description}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, description: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
+            multiline
+            rows={4}
           />
           <TextField
-            label="Price"
-            value={editAccommodation.price}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, price: e.target.value })}
+            name="discountedPrice"
+            label="discountedPrice"
+            value={editAccommodation.discountedPrice}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="size"
             label="Size"
             value={editAccommodation.size}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, size: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="beds"
             label="Beds"
             value={editAccommodation.beds}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, beds: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="bathrooms"
             label="Bathrooms"
             value={editAccommodation.bathrooms}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, bathrooms: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
-            label="Check-in Date"
-            type="date"
+            name="checkIn"
+            label="Check-In Date"
             value={editAccommodation.checkIn}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, checkIn: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="Check-out Date"
             type="date"
-            value={editAccommodation.checkOut}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, checkOut: e.target.value })}
-            fullWidth
-            margin="normal"
             InputLabelProps={{ shrink: true }}
           />
           <TextField
+            name="checkOut"
+            label="Check-Out Date"
+            value={editAccommodation.checkOut}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
+            fullWidth
+            margin="normal"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            name="guests"
             label="Guests"
             value={editAccommodation.guests}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, guests: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="amenities"
+            label="Amenities"
+            value={editAccommodation.amenities}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
+            fullWidth
+            margin="normal"
+            multiline
+            rows={2}
+          />
+
+          <TextField
+            name="reviews"
             label="Reviews"
             value={editAccommodation.reviews}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, reviews: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="view"
             label="View"
             value={editAccommodation.view}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, view: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
           />
           <TextField
+            name="nights"
             label="Nights"
             value={editAccommodation.nights}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, nights: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
+            type="number"
           />
           <TextField
+            name="image"
             label="Image URL"
             value={editAccommodation.image}
-            onChange={(e) => setEditAccommodation({ ...editAccommodation, image: e.target.value })}
+            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
             margin="normal"
           />
@@ -398,7 +494,8 @@ const AccommodationManagement = () => {
             control={
               <Checkbox
                 checked={editAccommodation.nonSmoking}
-                onChange={(e) => setEditAccommodation({ ...editAccommodation, nonSmoking: e.target.checked })}
+                onChange={(e) => handleChange(e, setEditAccommodation)}
+                name="nonSmoking"
               />
             }
             label="Non-smoking"
@@ -407,7 +504,8 @@ const AccommodationManagement = () => {
             control={
               <Checkbox
                 checked={editAccommodation.isFavorite}
-                onChange={(e) => setEditAccommodation({ ...editAccommodation, isFavorite: e.target.checked })}
+                onChange={(e) => handleChange(e, setEditAccommodation)}
+                name="isFavorite"
               />
             }
             label="Favorite"
@@ -416,63 +514,140 @@ const AccommodationManagement = () => {
             control={
               <Checkbox
                 checked={editAccommodation.isBooked}
-                onChange={(e) => setEditAccommodation({ ...editAccommodation, isBooked: e.target.checked })}
+                onChange={(e) => handleChange(e, setEditAccommodation)}
+                name="isBooked"
               />
             }
             label="Booked"
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEditDialog(false)} color="primary">
+          <Button onClick={() => setOpenEditDialog(false)} color="secondary">
             Cancel
           </Button>
           <Button onClick={handleUpdate} color="primary">
-            Update
+            Save
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
+      {/* View Accommodation Dialog */}
+      <Dialog
+        open={openViewDialog}
+        onClose={() => setOpenViewDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>View Accommodation</DialogTitle>
+        <DialogContent>
+          <Typography variant="h6">{viewAccommodation?.heading}</Typography>
+          <Typography>{viewAccommodation?.description}</Typography>
+          <Typography>discountedPrice: {viewAccommodation?.discountedPrice}</Typography>
+          <Typography>Size: {viewAccommodation?.size}</Typography>
+          <Typography>Beds: {viewAccommodation?.beds}</Typography>
+          <Typography>Bathrooms: {viewAccommodation?.bathrooms}</Typography>
+          <Typography>Check-In: {viewAccommodation?.checkIn}</Typography>
+          <Typography>Check-Out: {viewAccommodation?.checkOut}</Typography>
+          <Typography>Guests: {viewAccommodation?.guests}</Typography>
+          <Typography>Amenities: {viewAccommodation?.amenities}</Typography>
+          <Typography>Reviews: {viewAccommodation?.reviews}</Typography>
+          <Typography>View: {viewAccommodation?.view}</Typography>
+          <Typography>Nights: {viewAccommodation?.nights}</Typography>
+          {viewAccommodation?.image && (
+            <img
+              src={viewAccommodation?.image}
+              alt="Accommodation"
+              style={{ width: '100%', height: 'auto' }}
+            />
+          )}
+          <Typography>Non-Smoking: {viewAccommodation?.nonSmoking ? 'Yes' : 'No'}</Typography>
+          <Typography>Favorite: {viewAccommodation?.isFavorite ? 'Yes' : 'No'}</Typography>
+          <Typography>Booked: {viewAccommodation?.isBooked ? 'Yes' : 'No'}</Typography>
+        </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenConfirmDialog(false)} color="primary">
+          <Button onClick={() => setOpenViewDialog(false)} color="secondary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm Delete Dialog */}
+      <Dialog
+        open={openConfirmDialog}
+        onClose={() => setOpenConfirmDialog(false)}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this accommodation?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenConfirmDialog(false)} color="secondary">
             Cancel
           </Button>
           <Button onClick={handleDelete} color="primary">
-            Confirm
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
 
+      {/* Snackbar for Notifications */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={() => setSnackbarOpen(false)}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="success">
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarMessage.includes('Error') ? 'error' : 'success'}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>
 
+      {/* Accommodation List */}
       <List>
         {accommodations.map((acc) => (
-          <ListItem key={acc.id}>
-            <Card>
+          <ListItem key={acc.id} divider>
+            <Card variant="outlined">
               <CardContent>
-                <Typography variant="h5">{acc.heading}</Typography>
-                <Typography variant="body2">{acc.description}</Typography>
-                {/* Display other details */}
-                <IconButton onClick={() => {
-                  setEditAccommodation(acc);
-                  setOpenEditDialog(true);
-                }}>
+                <Typography variant="h6">{acc.heading}</Typography>
+                <Typography>discountedPrice: {acc.discountedPrice}</Typography>
+                {/* Add other fields to display */}
+                {acc.image && (
+                  <img
+                    src={acc.image}
+                    alt="Accommodation"
+                    style={{ width: '100%', height: 'auto' }}
+                  />
+                )}
+                <Typography>Amenities: {acc.amenities}</Typography>
+
+                <IconButton
+                  onClick={() => {
+                    setEditAccommodation(acc);
+                    setOpenEditDialog(true);
+                  }}
+                  aria-label="Edit"
+                >
                   <EditIcon />
                 </IconButton>
-                <IconButton onClick={() => {
-                  setItemToDelete(acc);
-                  setOpenConfirmDialog(true);
-                }}>
+                <IconButton
+                  onClick={() => {
+                    setItemToDelete(acc);
+                    setOpenConfirmDialog(true);
+                  }}
+                  aria-label="Delete"
+                >
                   <DeleteIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => {
+                    setViewAccommodation(acc);
+                    setOpenViewDialog(true);
+                  }}
+                  aria-label="View"
+                >
+                  <VisibilityIcon />
                 </IconButton>
               </CardContent>
             </Card>
@@ -484,7 +659,3 @@ const AccommodationManagement = () => {
 };
 
 export default AccommodationManagement;
-
-
-
-

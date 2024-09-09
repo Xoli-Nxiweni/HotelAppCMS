@@ -88,3 +88,4 @@ export const updateUser = async (collectionName, id, updates) => {
     console.error('Error updating user:', error);
   }
 };
+

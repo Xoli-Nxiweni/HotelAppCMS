@@ -3,6 +3,7 @@ import { AppBar, Tabs, Tab, Container, Typography, Box, Paper } from '@mui/mater
 import AccommodationManagement from '../AccommodationManagement/AccommodationManagement';
 import ReservationsManagement from '../ReservationsManagement/ReservationsManagement';
 import UsersManagement from '../Users/UsersManagement';
+import Bookings from '../Bookings/Bookings';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('accommodations');
@@ -23,7 +24,8 @@ const Dashboard = () => {
         >
           <Tab value="accommodations" label="Manage Accommodations" />
           <Tab value="reservations" label="Manage Reservations" />
-          <Tab value="users" label="Manage Users" /> {/* New Tab for Users */}
+          <Tab value="users" label="Manage Users" /> {/* Tab for Users */}
+          <Tab value="bookings" label="Manage Bookings" /> {/* New Tab for Bookings */}
         </Tabs>
       </AppBar>
       <Box
@@ -56,7 +58,15 @@ const Dashboard = () => {
             <Typography variant="h5" gutterBottom>
               Users Management
             </Typography>
-            <UsersManagement /> {/* Render Users Management Component */}
+            <UsersManagement />
+          </Paper>
+        )}
+        {activeTab === 'bookings' && (
+          <Paper elevation={3} sx={{ padding: 2 }}>
+            <Typography variant="h5" gutterBottom>
+              Bookings Management
+            </Typography>
+            <Bookings />
           </Paper>
         )}
       </Box>
