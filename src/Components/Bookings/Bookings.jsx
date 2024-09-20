@@ -16,9 +16,11 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
-import { fetchCollection, addDocument, updateDocument, deleteDocument } from '../../Firebase/FirestoreService'; // Ensure these are correctly imported
-import { Edit, Delete } from '@mui/icons-material'; // MUI icons for CRUD operations
+import { fetchCollection, addDocument, updateDocument, deleteDocument } from '../../Firebase/FirestoreService';
+import { Edit, Delete } from '@mui/icons-material';
 
 const Bookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -27,14 +29,14 @@ const Bookings = () => {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  // For managing modals
+  // Dialog states
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+  const [openRejectDialog, setOpenRejectDialog] = useState(false);
   const [currentBooking, setCurrentBooking] = useState(null);
-  const [bookingToDelete, setBookingToDelete] = useState(null);
 
-  // For form data
+  // Form data state
   const [formData, setFormData] = useState({
     name: '',
     room: '',
@@ -81,12 +83,52 @@ const Bookings = () => {
       await addDocument('bookings', formData);
       setSnackbarMessage('Booking added successfully');
       setOpenAddDialog(false);
+      setFormData({
+        name: '',
+        room: '',
+        heading: '',
+        accommodation: '',
+        checkIn: '',
+        checkOut: '',
+        guests: '',
+        numRooms: '',
+        price: '',
+        discountedPrice: '',
+        amenities: '',
+        specialRequests: '',
+        review: '',
+        email: '',
+        phoneNumber: '',
+        userID: '',
+        view: '',
+        nonSmoking: false,
+        isBooked: false,
+        isFavorite: false,
+      });
     } catch (error) {
       setError('Failed to add booking.');
       setSnackbarMessage(`Error: ${error.message}`);
     } finally {
       setOpenSnackbar(true);
     }
+  };
+
+  const handleOpenConfirmDialog = (booking) => {
+    setCurrentBooking(booking);
+    setOpenConfirmDialog(true);
+  };
+
+  const handleOpenRejectDialog = (booking) => {
+    setCurrentBooking(booking);
+    setOpenRejectDialog(true);
+  };
+
+  const handleCloseConfirmDialog = () => {
+    setOpenConfirmDialog(false);
+  };
+
+  const handleCloseRejectDialog = () => {
+    setOpenRejectDialog(false);
   };
 
   const handleUpdate = async () => {
@@ -118,7 +160,7 @@ const Bookings = () => {
 
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
-    setError(null); // Reset error after closing snackbar
+    setError(null);
   };
 
   const handleOpenAddDialog = () => {
@@ -174,12 +216,6 @@ const Bookings = () => {
     setOpenEditDialog(true);
   };
 
-  const handleOpenConfirmDialog = (booking) => {
-    setBookingToDelete(booking);
-    setOpenConfirmDialog(true);
-  };
-
-  
   const handleCloseAddDialog = () => {
     setOpenAddDialog(false);
   };
@@ -188,15 +224,33 @@ const Bookings = () => {
     setOpenEditDialog(false);
   };
 
-  const handleCloseConfirmDialog = () => {
-    setOpenConfirmDialog(false);
-    setBookingToDelete(null);
+  const handleConfirm = async () => {
+    if (currentBooking) {
+      try {
+        await updateDocument('bookings', currentBooking.id, { isBooked: true });
+        setSnackbarMessage('Booking confirmed successfully');
+      } catch (error) {
+        setError('Failed to confirm booking.');
+        setSnackbarMessage(`Error: ${error.message}`);
+      } finally {
+        setOpenSnackbar(true);
+        handleCloseConfirmDialog();
+      }
+    }
   };
 
-  const handleConfirmDelete = async () => {
-    if (bookingToDelete) {
-      await handleDelete(bookingToDelete.id);
-      handleCloseConfirmDialog();
+  const handleReject = async () => {
+    if (currentBooking) {
+      try {
+        await deleteDocument('bookings', currentBooking.id);
+        setSnackbarMessage('Booking rejected and deleted successfully');
+      } catch (error) {
+        setError('Failed to reject booking.');
+        setSnackbarMessage(`Error: ${error.message}`);
+      } finally {
+        setOpenSnackbar(true);
+        handleCloseRejectDialog();
+      }
     }
   };
 
@@ -222,12 +276,9 @@ const Bookings = () => {
           {bookings.map((booking) => (
             <ListItem key={booking.id} alignItems="flex-start">
               <ListItemText
-                primary={
-                  <Typography variant="h6">{`Booking for ${booking.name}`}</Typography>
-                }
+                primary={<Typography variant="h6">{`Booking for ${booking.name}`}</Typography>}
                 secondary={
                   <>
-                    {/* Display booking details */}
                     <Typography variant="body2" color="textSecondary">
                       <strong>Room:</strong> {booking.room} - {booking.heading}
                     </Typography>
@@ -258,414 +309,119 @@ const Bookings = () => {
                   </>
                 }
               />
-              <IconButton onClick={() => handleOpenEditDialog(booking)} color="primary">
+              <IconButton onClick={() => handleOpenConfirmDialog(booking)}>
+                <Button variant="outlined" color="success">Confirm</Button>
+              </IconButton>
+              <IconButton onClick={() => handleOpenEditDialog(booking)}>
                 <Edit />
               </IconButton>
-              <IconButton onClick={() => handleOpenConfirmDialog(booking)} color="secondary">
+              <IconButton onClick={() => handleOpenRejectDialog(booking)}>
                 <Delete />
               </IconButton>
-              <Divider />
             </ListItem>
           ))}
         </List>
       )}
-      <Button variant="contained" color="primary" onClick={handleOpenAddDialog}>
+      <Divider />
+      <Button onClick={handleOpenAddDialog} variant="contained" color="primary" style={{ marginTop: '16px' }}>
         Add Booking
       </Button>
 
-     {/* Add Booking Dialog */}
-<Dialog open={openAddDialog} onClose={handleCloseAddDialog}>
-  <DialogTitle>Add Booking</DialogTitle>
-  <DialogContent>
-    <TextField
-      name="name"
-      label="Name"
-      value={formData.name}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="room"
-      label="Room"
-      value={formData.room}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="heading"
-      label="Heading"
-      value={formData.heading}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="accommodation"
-      label="Accommodation"
-      value={formData.accommodation}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="checkIn"
-      label="Check-In Date"
-      type="date"
-      value={formData.checkIn}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-      InputLabelProps={{ shrink: true }}
-    />
-    <TextField
-      name="checkOut"
-      label="Check-Out Date"
-      type="date"
-      value={formData.checkOut}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-      InputLabelProps={{ shrink: true }}
-    />
-    <TextField
-      name="guests"
-      label="Number of Guests"
-      type="number"
-      value={formData.guests}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="numRooms"
-      label="Number of Rooms"
-      type="number"
-      value={formData.numRooms}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="price"
-      label="Price"
-      type="number"
-      value={formData.price}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="discountedPrice"
-      label="Discounted Price"
-      type="number"
-      value={formData.discountedPrice}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="amenities"
-      label="Amenities"
-      value={formData.amenities}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="specialRequests"
-      label="Special Requests"
-      value={formData.specialRequests}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="review"
-      label="Review"
-      value={formData.review}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="email"
-      label="Email"
-      type="email"
-      value={formData.email}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="phoneNumber"
-      label="Phone Number"
-      type="tel"
-      value={formData.phoneNumber}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="userID"
-      label="User ID"
-      value={formData.userID}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="view"
-      label="View"
-      value={formData.view}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="nonSmoking"
-      label="Non-Smoking"
-      type="checkbox"
-      checked={formData.nonSmoking}
-      onChange={handleFormChange}
-      margin="normal"
-    />
-    <TextField
-      name="isBooked"
-      label="Is Booked"
-      type="checkbox"
-      checked={formData.isBooked}
-      onChange={handleFormChange}
-      margin="normal"
-    />
-    <TextField
-      name="isFavorite"
-      label="Is Favorite"
-      type="checkbox"
-      checked={formData.isFavorite}
-      onChange={handleFormChange}
-      margin="normal"
-    />
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleCloseAddDialog} color="primary">
-      Cancel
-    </Button>
-    <Button onClick={handleAdd} color="primary">
-      Add
-    </Button>
-  </DialogActions>
-</Dialog>
-
-      {/* Edit Booking Dialog */}
-<Dialog open={openEditDialog} onClose={handleCloseEditDialog}>
-  <DialogTitle>Edit Booking</DialogTitle>
-  <DialogContent>
-    <TextField
-      name="name"
-      label="Name"
-      value={formData.name}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="room"
-      label="Room"
-      value={formData.room}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="heading"
-      label="Heading"
-      value={formData.heading}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="accommodation"
-      label="Accommodation"
-      value={formData.accommodation}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="checkIn"
-      label="Check-In Date"
-      type="date"
-      value={formData.checkIn}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-      InputLabelProps={{ shrink: true }}
-    />
-    <TextField
-      name="checkOut"
-      label="Check-Out Date"
-      type="date"
-      value={formData.checkOut}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-      InputLabelProps={{ shrink: true }}
-    />
-    <TextField
-      name="guests"
-      label="Number of Guests"
-      type="number"
-      value={formData.guests}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="numRooms"
-      label="Number of Rooms"
-      type="number"
-      value={formData.numRooms}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="price"
-      label="Price"
-      type="number"
-      value={formData.price}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="discountedPrice"
-      label="Discounted Price"
-      type="number"
-      value={formData.discountedPrice}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="amenities"
-      label="Amenities"
-      value={formData.amenities}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="specialRequests"
-      label="Special Requests"
-      value={formData.specialRequests}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="review"
-      label="Review"
-      value={formData.review}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="email"
-      label="Email"
-      type="email"
-      value={formData.email}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="phoneNumber"
-      label="Phone Number"
-      type="tel"
-      value={formData.phoneNumber}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="userID"
-      label="User ID"
-      value={formData.userID}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="view"
-      label="View"
-      value={formData.view}
-      onChange={handleFormChange}
-      fullWidth
-      margin="normal"
-    />
-    <TextField
-      name="nonSmoking"
-      label="Non-Smoking"
-      type="checkbox"
-      checked={formData.nonSmoking}
-      onChange={handleFormChange}
-      margin="normal"
-    />
-    <TextField
-      name="isBooked"
-      label="Is Booked"
-      type="checkbox"
-      checked={formData.isBooked}
-      onChange={handleFormChange}
-      margin="normal"
-    />
-    <TextField
-      name="isFavorite"
-      label="Is Favorite"
-      type="checkbox"
-      checked={formData.isFavorite}
-      onChange={handleFormChange}
-      margin="normal"
-    />
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleCloseEditDialog} color="primary">
-      Cancel
-    </Button>
-    <Button onClick={handleUpdate} color="primary">
-      Update
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
-      {/* Confirmation Dialog */}
-      <Dialog open={openConfirmDialog} onClose={handleCloseConfirmDialog}>
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to delete this booking?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseConfirmDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDelete} color="secondary">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Snackbar for Feedback */}
+      {/* Snackbar for error/success messages */}
       <Snackbar open={openSnackbar} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity={error ? 'error' : 'success'}>
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Add Booking Dialog */}
+      <Dialog open={openAddDialog} onClose={handleCloseAddDialog}>
+        <DialogTitle>Add Booking</DialogTitle>
+        <DialogContent>
+          <TextField label="Name" name="name" fullWidth value={formData.name} onChange={handleFormChange} />
+          <TextField label="Room" name="room" fullWidth value={formData.room} onChange={handleFormChange} />
+          <TextField label="Heading" name="heading" fullWidth value={formData.heading} onChange={handleFormChange} />
+          <TextField label="Accommodation" name="accommodation" fullWidth value={formData.accommodation} onChange={handleFormChange} />
+          <TextField label="Check-In" name="checkIn" type="date" fullWidth value={formData.checkIn} onChange={handleFormChange} />
+          <TextField label="Check-Out" name="checkOut" type="date" fullWidth value={formData.checkOut} onChange={handleFormChange} />
+          <TextField label="Guests" name="guests" type="number" fullWidth value={formData.guests} onChange={handleFormChange} />
+          <TextField label="Number of Rooms" name="numRooms" type="number" fullWidth value={formData.numRooms} onChange={handleFormChange} />
+          <TextField label="Price" name="price" type="number" fullWidth value={formData.price} onChange={handleFormChange} />
+          <TextField label="Discounted Price" name="discountedPrice" type="number" fullWidth value={formData.discountedPrice} onChange={handleFormChange} />
+          <TextField label="Amenities" name="amenities" fullWidth value={formData.amenities} onChange={handleFormChange} />
+          <TextField label="Special Requests" name="specialRequests" fullWidth value={formData.specialRequests} onChange={handleFormChange} />
+          <TextField label="Review" name="review" fullWidth value={formData.review} onChange={handleFormChange} />
+          <TextField label="Email" name="email" fullWidth value={formData.email} onChange={handleFormChange} />
+          <TextField label="Phone Number" name="phoneNumber" fullWidth value={formData.phoneNumber} onChange={handleFormChange} />
+          <TextField label="User ID" name="userID" fullWidth value={formData.userID} onChange={handleFormChange} />
+          <TextField label="View" name="view" fullWidth value={formData.view} onChange={handleFormChange} />
+          <FormControlLabel
+            control={<Checkbox checked={formData.nonSmoking} onChange={handleFormChange} name="nonSmoking" />}
+            label="Non-Smoking"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAddDialog} color="secondary">Cancel</Button>
+          <Button onClick={handleAdd} color="primary">Add</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Booking Dialog */}
+<Dialog open={openEditDialog} onClose={handleCloseEditDialog}>
+  <DialogTitle>Edit Booking</DialogTitle>
+  <DialogContent>
+    <TextField label="Name" name="name" fullWidth value={formData.name} onChange={handleFormChange} />
+    <TextField label="Room" name="room" fullWidth value={formData.room} onChange={handleFormChange} />
+    <TextField label="Heading" name="heading" fullWidth value={formData.heading} onChange={handleFormChange} />
+    <TextField label="Accommodation" name="accommodation" fullWidth value={formData.accommodation} onChange={handleFormChange} />
+    <TextField label="Check-In" name="checkIn" type="date" fullWidth value={formData.checkIn} onChange={handleFormChange} />
+    <TextField label="Check-Out" name="checkOut" type="date" fullWidth value={formData.checkOut} onChange={handleFormChange} />
+    <TextField label="Guests" name="guests" type="number" fullWidth value={formData.guests} onChange={handleFormChange} />
+    <TextField label="Number of Rooms" name="numRooms" type="number" fullWidth value={formData.numRooms} onChange={handleFormChange} />
+    <TextField label="Price" name="price" type="number" fullWidth value={formData.price} onChange={handleFormChange} />
+    <TextField label="Discounted Price" name="discountedPrice" type="number" fullWidth value={formData.discountedPrice} onChange={handleFormChange} />
+    <TextField label="Amenities" name="amenities" fullWidth value={formData.amenities} onChange={handleFormChange} />
+    <TextField label="Special Requests" name="specialRequests" fullWidth value={formData.specialRequests} onChange={handleFormChange} />
+    <TextField label="Review" name="review" fullWidth value={formData.review} onChange={handleFormChange} />
+    <TextField label="Email" name="email" fullWidth value={formData.email} onChange={handleFormChange} />
+    <TextField label="Phone Number" name="phoneNumber" fullWidth value={formData.phoneNumber} onChange={handleFormChange} />
+    <TextField label="User ID" name="userID" fullWidth value={formData.userID} onChange={handleFormChange} />
+    <TextField label="View" name="view" fullWidth value={formData.view} onChange={handleFormChange} />
+    <FormControlLabel
+      control={<Checkbox checked={formData.nonSmoking} onChange={handleFormChange} name="nonSmoking" />}
+      label="Non-Smoking"
+    />
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseEditDialog} color="secondary">Cancel</Button>
+    <Button onClick={handleUpdate} color="primary">Update</Button>
+  </DialogActions>
+</Dialog>
+
+      {/* Confirm Dialog */}
+      <Dialog open={openConfirmDialog} onClose={handleCloseConfirmDialog}>
+  <DialogTitle>Confirm Booking</DialogTitle>
+  <DialogContent>
+    <Typography>Are you sure you want to confirm this booking?</Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseConfirmDialog} color="secondary">Cancel</Button>
+    <Button onClick={handleConfirm} color="primary">Confirm</Button>
+    <Button onClick={handleReject} color="error">Decline</Button>
+  </DialogActions>
+</Dialog>
+
+      {/* Reject Dialog */}
+      <Dialog open={openRejectDialog} onClose={handleCloseRejectDialog}>
+        <DialogTitle>Reject Booking</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to reject this booking?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRejectDialog} color="secondary">Cancel</Button>
+          <Button onClick={handleReject} color="primary">Reject</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
