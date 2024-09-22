@@ -29,9 +29,11 @@ const App = () => {
 
   return (
     <Router>
-      <AppBar position="static" color="primary">
+      <AppBar position="static" sx={{
+        background: '#000'
+      }}>
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1, background: 'black' }}>
           <div className="logo">
             <h1>Rest<span>Q</span>uest</h1>
           </div>

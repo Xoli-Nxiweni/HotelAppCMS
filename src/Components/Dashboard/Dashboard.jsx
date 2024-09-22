@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AppBar, Tabs, Tab, Container, Typography, Box, Paper } from '@mui/material';
 import AccommodationManagement from '../AccommodationManagement/AccommodationManagement';
-import ReservationsManagement from '../ReservationsManagement/ReservationsManagement';
+// import ReservationsManagement from '../ReservationsManagement/ReservationsManagement';c
 import UsersManagement from '../Users/UsersManagement';
 import Bookings from '../Bookings/Bookings';
 
@@ -20,10 +20,10 @@ const Dashboard = () => {
           onChange={handleTabChange}
           textColor="inherit"
           indicatorColor="secondary"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{ borderBottom: 1, borderColor: 'divider', background: '#000' }}
         >
           <Tab value="accommodations" label="Manage Accommodations" />
-          <Tab value="reservations" label="Manage Reservations" />
+          {/* <Tab value="reservations" label="Manage Reservations" /> */}
           <Tab value="users" label="Manage Users" /> {/* Tab for Users */}
           <Tab value="bookings" label="Manage Bookings" /> {/* New Tab for Bookings */}
         </Tabs>
@@ -45,14 +45,14 @@ const Dashboard = () => {
             <AccommodationManagement />
           </Paper>
         )}
-        {activeTab === 'reservations' && (
+        {/* {activeTab === 'reservations' && (
           <Paper elevation={3} sx={{ padding: 2 }}>
             <Typography variant="h5" gutterBottom>
               Reservations Management
             </Typography>
             <ReservationsManagement />
           </Paper>
-        )}
+        )} */}
         {activeTab === 'users' && (
           <Paper elevation={3} sx={{ padding: 2 }}>
             <Typography variant="h5" gutterBottom>
