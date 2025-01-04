@@ -1,34 +1,31 @@
 import { useState, useEffect } from 'react';
-import {
-  Button,
-  TextField,
-  List,
-  ListItem,
-  Typography,
-  Card,
-  CardContent,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Snackbar,
-  Alert,
-  Checkbox,
-  FormControlLabel,
-  CircularProgress,
-  Chip,
-  Box,
-} from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import { addDoc, collection, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../Firebase/Firebase';
 import { fetchCollection } from '../../Firebase/FirestoreService';
+import {
+  Button,
+  TextField,
+  Paper,
+  Typography,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar,
+  Alert,
+  Box,
+  Divider,
+  Checkbox,
+  FormControlLabel,
+  Pagination,
+} from '@mui/material';
+import { Edit, Delete, Add, Visibility } from '@mui/icons-material';
 
-// Initial state for an accommodation
 const initialAccommodationState = {
   heading: '',
   description: '',
@@ -46,7 +43,7 @@ const initialAccommodationState = {
   nights: '',
   isFavorite: false,
   isBooked: false,
-  image: '', // For image URL
+  image: '',
 };
 
 const AccommodationManagement = () => {
@@ -54,16 +51,18 @@ const AccommodationManagement = () => {
   const [newAccommodation, setNewAccommodation] = useState(initialAccommodationState);
   const [editAccommodation, setEditAccommodation] = useState(initialAccommodationState);
   const [viewAccommodation, setViewAccommodation] = useState(null);
-  const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [openEditDialog, setOpenEditDialog] = useState(false);
-  const [openViewDialog, setOpenViewDialog] = useState(false);
-  const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [amenityInput, setAmenityInput] = useState('');
+  const [dialogOpen, setDialogOpen] = useState({ add: false, edit: false, view: false });
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5; // Number of items per page
+
+  // Fetch accommodations on component mount
   useEffect(() => {
     const fetchAccommodations = async () => {
       setLoading(true);
@@ -71,7 +70,7 @@ const AccommodationManagement = () => {
         const data = await fetchCollection('hotelRooms');
         setAccommodations(data);
       } catch (error) {
-        showSnackbar('Error fetching accommodations:', 'error', error);
+        showSnackbar('Error fetching accommodations: ' + error.message, 'error');
       } finally {
         setLoading(false);
       }
@@ -79,106 +78,68 @@ const AccommodationManagement = () => {
     fetchAccommodations();
   }, []);
 
+  // Handle input changes
   const handleChange = (e, setter) => {
     const { name, value, type, checked } = e.target;
-    setter((prevState) => ({
-      ...prevState,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setter((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
+  // Handle adding a new accommodation
   const handleAdd = async () => {
     if (!newAccommodation.heading || !newAccommodation.discountedPrice) {
-      showSnackbar('Heading and discountedPrice are required!', 'error');
+      showSnackbar('Heading and discounted price are required!', 'error');
       return;
     }
-
     setLoading(true);
     try {
       const docRef = await addDoc(collection(db, 'hotelRooms'), newAccommodation);
-      setAccommodations((prev) => [...prev, { ...newAccommodation, id: docRef.id }]);
+      setAccommodations([...accommodations, { ...newAccommodation, id: docRef.id }]);
       setNewAccommodation(initialAccommodationState);
-      setOpenAddDialog(false);
-      showSnackbar('Accommodation added successfully!');
+      setDialogOpen({ ...dialogOpen, add: false });
+      showSnackbar('Accommodation added successfully!', 'success');
     } catch (error) {
-      showSnackbar(`Error adding accommodation: ${error.message}`, 'error');
+      showSnackbar('Error adding accommodation: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle updating an accommodation
   const handleUpdate = async () => {
-    if (!editAccommodation.heading || !editAccommodation.discountedPrice) {
-      showSnackbar('Heading and discountedPrice are required!', 'error');
-      return;
-    }
-
     setLoading(true);
     try {
       const docRef = doc(db, 'hotelRooms', editAccommodation.id);
-      await updateDoc(docRef, {
-        heading: editAccommodation.heading,
-        discountedPrice: editAccommodation.discountedPrice,
-        description: editAccommodation.description,
-        size: editAccommodation.size,
-        beds: editAccommodation.beds,
-        bathrooms: editAccommodation.bathrooms,
-        amenities: editAccommodation.amenities,
-        checkIn: editAccommodation.checkIn,
-        checkOut: editAccommodation.checkOut,
-        guests: editAccommodation.guests,
-        nonSmoking: editAccommodation.nonSmoking,
-        reviews: editAccommodation.reviews,
-        view: editAccommodation.view,
-        nights: editAccommodation.nights,
-        isFavorite: editAccommodation.isFavorite,
-        isBooked: editAccommodation.isBooked,
-        image: editAccommodation.image,
-      });
-
-      setAccommodations((prev) =>
-        prev.map((acc) =>
-          acc.id === editAccommodation.id ? editAccommodation : acc
-        )
-      );
-
+      await updateDoc(docRef, editAccommodation);
+      setAccommodations(accommodations.map((acc) =>
+        acc.id === editAccommodation.id ? editAccommodation : acc
+      ));
       setEditAccommodation(initialAccommodationState);
-      setOpenEditDialog(false);
-      showSnackbar('Accommodation updated successfully!');
+      setDialogOpen({ ...dialogOpen, edit: false });
+      showSnackbar('Accommodation updated successfully!', 'success');
     } catch (error) {
-      showSnackbar(`Error updating accommodation: ${error.message}`, 'error');
+      showSnackbar('Error updating accommodation: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!itemToDelete) return;
-
+  // Handle deleting an accommodation
+  const handleDelete = async (id) => {
     setLoading(true);
     try {
-      await deleteDoc(doc(db, 'hotelRooms', itemToDelete.id));
-      setAccommodations((prev) => prev.filter((acc) => acc.id !== itemToDelete.id));
-      setOpenConfirmDialog(false);
-      showSnackbar('Accommodation deleted successfully!');
+      await deleteDoc(doc(db, 'hotelRooms', id));
+      setAccommodations(accommodations.filter((acc) => acc.id !== id));
+      showSnackbar('Accommodation deleted successfully!', 'success');
     } catch (error) {
-      showSnackbar(`Error deleting accommodation: ${error.message}`, 'error');
+      showSnackbar('Error deleting accommodation: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const showSnackbar = (message, severity = 'success') => {
-    setSnackbarMessage(message);
-    setSnackbarOpen(true);
-  };
-
-  const handleAmenityChange = (e) => {
-    setAmenityInput(e.target.value);
-  };
-
+  // Add an amenity to the new accommodation
   const addAmenity = () => {
-    if (amenityInput.trim() !== '') {
+    if (amenityInput.trim()) {
       setNewAccommodation((prev) => ({
         ...prev,
         amenities: [...prev.amenities, amenityInput.trim()],
@@ -187,533 +148,305 @@ const AccommodationManagement = () => {
     }
   };
 
-  const removeAmenity = (index, setter) => {
-    setter((prev) => ({
-      ...prev,
-      amenities: prev.amenities.filter((_, i) => i !== index),
-    }));
+  // Show snackbar notification
+  const showSnackbar = (message, severity) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
   };
 
+  // Pagination logic
+  const handlePageChange = (event, value) => {
+    setPage(value);
+  };
+
+  const paginatedAccommodations = accommodations.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+
   return (
-    <div>
-      <Button
-        onClick={() => setOpenAddDialog(true)}
-        variant="contained"
-        color="primary"
-        startIcon={<AddIcon />}
-        aria-label="Add Accommodation"
-      >
-        Add Accommodation
-      </Button>
+    <Paper elevation={0} sx={{ p: 3, backgroundColor: 'transparent' }}>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" sx={{ mb: 2, color: '#333' }}>
+          Accommodation Management
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={() => setDialogOpen({ ...dialogOpen, add: true })}
+          startIcon={<Add />}
+          sx={{
+            backgroundColor: 'coral',
+            '&:hover': {
+              backgroundColor: '#ff7f50',
+            },
+          }}
+        >
+          Add Accommodation
+        </Button>
+      </Box>
 
-      {loading && <CircularProgress />}
+      <Divider sx={{ my: 3 }} />
 
-      {/* Accommodation List */}
-      <List>
-        {accommodations.map((accommodation) => (
-          <ListItem key={accommodation.id}>
-            <Card>
-              <CardContent>
-                <Typography variant="h5">{accommodation.heading}</Typography>
-                <Typography variant="body1">
-                  <img src={accommodation.image} alt={accommodation.heading} style={{ width: '100%', height: 'auto' }} />
-                </Typography>
-                <Typography variant="subtitle1">
-                  Price: ${accommodation.discountedPrice}
-                </Typography>
-                <Typography variant="body2">
-                  {accommodation.description}
-                </Typography>
-                
+      {loading && <Typography>Loading...</Typography>}
+
+      <Paper elevation={1} sx={{ backgroundColor: '#fff' }}>
+        <List>
+          {paginatedAccommodations.map((accommodation) => (
+            <ListItem
+              key={accommodation.id}
+              sx={{
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                },
+                borderBottom: '1px solid #eee',
+              }}
+            >
+              <ListItemText
+                primary={accommodation.heading}
+                secondary={`Price: R${accommodation.discountedPrice} | Size: ${accommodation.size} m²`}
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    color: '#333',
+                    fontWeight: 500,
+                  },
+                }}
+              />
+              <ListItemSecondaryAction>
                 <IconButton
-                  onClick={() => {
-                    setEditAccommodation(accommodation);
-                    setOpenEditDialog(true);
-                  }}
-                  aria-label="edit"
+                  edge="end"
+                  onClick={() => { setEditAccommodation(accommodation); setDialogOpen({ ...dialogOpen, edit: true }); }}
+                  sx={{ color: 'coral', mr: 1 }}
                 >
-                  <EditIcon />
+                  <Edit />
                 </IconButton>
                 <IconButton
-                  onClick={() => {
-                    setViewAccommodation(accommodation);
-                    setOpenViewDialog(true);
-                  }}
-                  aria-label="view"
+                  edge="end"
+                  onClick={() => handleDelete(accommodation.id)}
+                  sx={{ color: '#666' }}
                 >
-                  <VisibilityIcon />
+                  <Delete />
                 </IconButton>
                 <IconButton
-                  onClick={() => {
-                    setItemToDelete(accommodation);
-                    setOpenConfirmDialog(true);
-                  }}
-                  aria-label="delete"
+                  edge="end"
+                  onClick={() => { setViewAccommodation(accommodation); setDialogOpen({ ...dialogOpen, view: true }); }}
+                  sx={{ color: '#333' }}
                 >
-                  <DeleteIcon />
+                  <Visibility /> {/* Use the eye icon for viewing */}
                 </IconButton>
-              </CardContent>
-            </Card>
-          </ListItem>
-        ))}
-      </List>
+              </ListItemSecondaryAction>
+            </ListItem>
+          ))}
+        </List>
+
+        {/* Pagination */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+          <Pagination
+            count={Math.ceil(accommodations.length / itemsPerPage)}
+            page={page}
+            onChange={handlePageChange}
+            color="primary"
+          />
+        </Box>
+      </Paper>
 
       {/* Add Accommodation Dialog */}
-      <Dialog
-        open={openAddDialog}
-        onClose={() => setOpenAddDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={dialogOpen.add} onClose={() => setDialogOpen({ ...dialogOpen, add: false })}>
         <DialogTitle>Add Accommodation</DialogTitle>
         <DialogContent>
           <TextField
+            fullWidth
             label="Heading"
             name="heading"
             value={newAccommodation.heading}
             onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Description"
             name="description"
             value={newAccommodation.description}
             onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Discounted Price"
             name="discountedPrice"
             value={newAccommodation.discountedPrice}
             onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
-            type="number"
+            sx={{ mt: 2 }}
           />
           <TextField
-            label="Size"
+            fullWidth
+            label="Size (m²)"
             name="size"
             value={newAccommodation.size}
             onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Beds"
             name="beds"
             value={newAccommodation.beds}
             onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Bathrooms"
             name="bathrooms"
             value={newAccommodation.bathrooms}
             onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
-            label="Check-In Time"
-            name="checkIn"
-            value={newAccommodation.checkIn}
-            onChange={(e) => handleChange(e, setNewAccommodation)}
             fullWidth
-            margin="normal"
-            type="time"
-          />
-          <TextField
-            label="Check-Out Time"
-            name="checkOut"
-            value={newAccommodation.checkOut}
-            onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
-            type="time"
-          />
-          <TextField
-            label="Guests"
-            name="guests"
-            value={newAccommodation.guests}
-            onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="Reviews"
-            name="reviews"
-            value={newAccommodation.reviews}
-            onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="View"
-            name="view"
-            value={newAccommodation.view}
-            onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="Nights"
-            name="nights"
-            value={newAccommodation.nights}
-            onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
             label="Image URL"
             name="image"
             value={newAccommodation.image}
             onChange={(e) => handleChange(e, setNewAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <FormControlLabel
             control={
               <Checkbox
+                name="nonSmoking"
                 checked={newAccommodation.nonSmoking}
                 onChange={(e) => handleChange(e, setNewAccommodation)}
-                name="nonSmoking"
               />
             }
             label="Non-Smoking"
+            sx={{ mt: 2 }}
           />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={newAccommodation.isFavorite}
-                onChange={(e) => handleChange(e, setNewAccommodation)}
-                name="isFavorite"
-              />
-            }
-            label="Favorite"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={newAccommodation.isBooked}
-                onChange={(e) => handleChange(e, setNewAccommodation)}
-                name="isBooked"
-              />
-            }
-            label="Booked"
-          />
-          <TextField
-            label="Amenity"
-            value={amenityInput}
-            onChange={handleAmenityChange}
-            fullWidth
-            margin="normal"
-          />
-          <Button
-            onClick={addAmenity}
-            variant="contained"
-            color="primary"
-          >
-            Add Amenity
-          </Button>
-          <Box mt={2}>
-            {newAccommodation.amenities.map((amenity, index) => (
-              <Chip
-                key={index}
-                label={amenity}
-                onDelete={() => removeAmenity(index, setNewAccommodation)}
-              />
-            ))}
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="Amenity"
+              value={amenityInput}
+              onChange={(e) => setAmenityInput(e.target.value)}
+            />
+            <Button onClick={addAmenity} sx={{ mt: 1 }}>Add Amenity</Button>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAddDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleAdd} color="primary" variant="contained">
-            Add
-          </Button>
+          <Button onClick={() => setDialogOpen({ ...dialogOpen, add: false })}>Cancel</Button>
+          <Button onClick={handleAdd} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Accommodation Dialog */}
-      <Dialog
-        open={openEditDialog}
-        onClose={() => setOpenEditDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={dialogOpen.edit} onClose={() => setDialogOpen({ ...dialogOpen, edit: false })}>
         <DialogTitle>Edit Accommodation</DialogTitle>
         <DialogContent>
           <TextField
+            fullWidth
             label="Heading"
             name="heading"
             value={editAccommodation.heading}
             onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Description"
             name="description"
             value={editAccommodation.description}
             onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Discounted Price"
             name="discountedPrice"
             value={editAccommodation.discountedPrice}
             onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
-            type="number"
+            sx={{ mt: 2 }}
           />
           <TextField
-            label="Size"
+            fullWidth
+            label="Size (m²)"
             name="size"
             value={editAccommodation.size}
             onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Beds"
             name="beds"
             value={editAccommodation.beds}
             onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
+            fullWidth
             label="Bathrooms"
             name="bathrooms"
             value={editAccommodation.bathrooms}
             onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <TextField
-            label="Check-In Date"
-            name="checkIn"
-            value={editAccommodation.checkIn}
-            onChange={(e) => handleChange(e, setEditAccommodation)}
             fullWidth
-            margin="normal"
-            type="date"
-          />
-          <TextField
-            label="Check-Out Date"
-            name="checkOut"
-            value={editAccommodation.checkOut}
-            onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
-            type="date"
-          />
-          <TextField
-            label="Guests"
-            name="guests"
-            value={editAccommodation.guests}
-            onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="Reviews"
-            name="reviews"
-            value={editAccommodation.reviews}
-            onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="View"
-            name="view"
-            value={editAccommodation.view}
-            onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="Nights"
-            name="nights"
-            value={editAccommodation.nights}
-            onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
             label="Image URL"
             name="image"
             value={editAccommodation.image}
             onChange={(e) => handleChange(e, setEditAccommodation)}
-            fullWidth
-            margin="normal"
+            sx={{ mt: 2 }}
           />
           <FormControlLabel
             control={
               <Checkbox
+                name="nonSmoking"
                 checked={editAccommodation.nonSmoking}
                 onChange={(e) => handleChange(e, setEditAccommodation)}
-                name="nonSmoking"
               />
             }
             label="Non-Smoking"
+            sx={{ mt: 2 }}
           />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={editAccommodation.isFavorite}
-                onChange={(e) => handleChange(e, setEditAccommodation)}
-                name="isFavorite"
-              />
-            }
-            label="Favorite"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={editAccommodation.isBooked}
-                onChange={(e) => handleChange(e, setEditAccommodation)}
-                name="isBooked"
-              />
-            }
-            label="Booked"
-          />
-          <Box mt={2}>
-            {editAccommodation.amenities.map((amenity, index) => (
-              <Chip
-                key={index}
-                label={amenity}
-                onDelete={() => removeAmenity(index, setEditAccommodation)}
-              />
-            ))}
-          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEditDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleUpdate} color="primary" variant="contained">
-            Update
-          </Button>
+          <Button onClick={() => setDialogOpen({ ...dialogOpen, edit: false })}>Cancel</Button>
+          <Button onClick={handleUpdate} variant="contained">Update</Button>
         </DialogActions>
       </Dialog>
 
-{/* View Accommodation Dialog */}
-<Dialog
-  open={openViewDialog}
-  onClose={() => setOpenViewDialog(false)}
-  maxWidth="sm"
-  fullWidth
->
-  <DialogTitle>View Accommodation</DialogTitle>
-  <DialogContent>
-    {viewAccommodation && (
-      <>
-        <Typography variant="h5">{viewAccommodation.heading}</Typography>
-        <img src={viewAccommodation.image} alt={viewAccommodation.heading} style={{ width: '100%', height: 'auto' }} />
-        <Typography variant="subtitle1">
-          Price: ${viewAccommodation.discountedPrice}
-        </Typography>
-        <Typography variant="body1">
-          Description: {viewAccommodation.description}
-        </Typography>
-        <Typography variant="body1">
-          Size: {viewAccommodation.size} sq ft
-        </Typography>
-        <Typography variant="body1">
-          Beds: {viewAccommodation.beds}
-        </Typography>
-        <Typography variant="body1">
-          Bathrooms: {viewAccommodation.bathrooms}
-        </Typography>
-        <Typography variant="body1">
-          Check-In Time: {viewAccommodation.checkIn}
-        </Typography>
-        <Typography variant="body1">
-          Check-Out Time: {viewAccommodation.checkOut}
-        </Typography>
-        <Typography variant="body1">
-          Guests: {viewAccommodation.guests}
-        </Typography>
-        <Typography variant="body1">
-          Reviews: {viewAccommodation.reviews}
-        </Typography>
-        <Typography variant="body1">
-          View: {viewAccommodation.view}
-        </Typography>
-        <Typography variant="body1">
-          Nights: {viewAccommodation.nights}
-        </Typography>
-        <Typography variant="body1">
-          Non-Smoking: {viewAccommodation.nonSmoking ? 'Yes' : 'No'}
-        </Typography>
-        <Typography variant="body1">
-          Favorite: {viewAccommodation.isFavorite ? 'Yes' : 'No'}
-        </Typography>
-        <Typography variant="body1">
-          Booked: {viewAccommodation.isBooked ? 'Yes' : 'No'}
-        </Typography>
-        <Box mt={2}>
-          <Typography variant="h6">Amenities:</Typography>
-          {viewAccommodation.amenities.length > 0 ? (
-            <ul>
-              {viewAccommodation.amenities.map((amenity, index) => (
-                <li key={index}>{amenity}</li>
-              ))}
-            </ul>
-          ) : (
-            <Typography>No amenities listed</Typography>
-          )}
-        </Box>
-      </>
-    )}
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setOpenViewDialog(false)} color="primary">
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
-      {/* Confirm Delete Dialog */}
-      <Dialog
-        open={openConfirmDialog}
-        onClose={() => setOpenConfirmDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
+      {/* View Accommodation Dialog */}
+      <Dialog open={dialogOpen.view} onClose={() => setDialogOpen({ ...dialogOpen, view: false })}>
+        <DialogTitle>{viewAccommodation?.heading}</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete this accommodation?</Typography>
+          <img src={viewAccommodation?.image} alt={viewAccommodation?.heading} style={{ width: '100%' }} />
+          <Typography>{viewAccommodation?.description}</Typography>
+          <Typography>Price: R{viewAccommodation?.discountedPrice}</Typography>
+          <Typography>Size: {viewAccommodation?.size} m²</Typography>
+          <Typography>Beds: {viewAccommodation?.beds}</Typography>
+          <Typography>Bathrooms: {viewAccommodation?.bathrooms}</Typography>
+          <Typography>Guests: {viewAccommodation?.guests}</Typography>
+          <Typography>Check-In: {viewAccommodation?.checkIn}</Typography>
+          <Typography>Check-Out: {viewAccommodation?.checkOut}</Typography>
+          <Typography>Amenities: {viewAccommodation?.amenities.join(', ')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenConfirmDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleDelete} color="primary" variant="contained">
-            Delete
-          </Button>
+          <Button onClick={() => setDialogOpen({ ...dialogOpen, view: false })}>Close</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar */}
+      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={6000}
+        autoHideDuration={4000}
         onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="success">
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity}>
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    </div>
+    </Paper>
   );
 };
 

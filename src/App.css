@@ -1,7 +1,13 @@
+*{
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+}
 .logo h1{
     color: #ffffff;
     font-size: 1.5em;
 }
 .logo span{
     color: coral;
+    font-size: 1.5em;
 }

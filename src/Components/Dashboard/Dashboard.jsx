@@ -1,76 +1,89 @@
 import { useState } from 'react';
-import { AppBar, Tabs, Tab, Container, Typography, Box, Paper } from '@mui/material';
+import { Users, Calendar, Home, UserCheck, Book } from 'lucide-react';
 import AccommodationManagement from '../AccommodationManagement/AccommodationManagement';
-// import ReservationsManagement from '../ReservationsManagement/ReservationsManagement';c
 import UsersManagement from '../Users/UsersManagement';
 import Bookings from '../Bookings/Bookings';
+import './Dashboard.css';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('accommodations');
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
+  const tabs = [
+    {
+      id: 'accommodations',
+      label: 'Manage Accommodations',
+      icon: <Home className="tab-icon" />,
+      panelIcon: <Home className="panel-icon" />,
+      component: <AccommodationManagement />,
+      stats: [
+        { label: 'Total Properties', value: '156' },
+        { label: 'Available', value: '43' },
+        { label: 'Under Maintenance', value: '12' }
+      ]
+    },
+    {
+      id: 'users',
+      label: 'Manage Users',
+      icon: <Users className="tab-icon" />,
+      panelIcon: <UserCheck className="panel-icon" />,
+      component: <UsersManagement />,
+      stats: [
+        { label: 'Total Users', value: '2,451' },
+        { label: 'Active Today', value: '342' },
+        { label: 'New This Week', value: '89' }
+      ]
+    },
+    {
+      id: 'bookings',
+      label: 'Manage Bookings',
+      icon: <Calendar className="tab-icon" />,
+      panelIcon: <Book className="panel-icon" />,
+      component: <Bookings />,
+      stats: [
+        { label: 'Total Bookings', value: '1,234' },
+        { label: 'Pending', value: '45' },
+        { label: 'Today\'s Check-ins', value: '28' }
+      ]
+    }
+  ];
+
+  const currentTab = tabs.find(tab => tab.id === activeTab);
 
   return (
-    <Container maxWidth="lg" sx={{ paddingY: 3 }}>
-      <AppBar position="static" color="primary" sx={{ borderRadius: 2 }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          textColor="inherit"
-          indicatorColor="secondary"
-          sx={{ borderBottom: 1, borderColor: 'divider', background: '#000' }}
-        >
-          <Tab value="accommodations" label="Manage Accommodations" />
-          {/* <Tab value="reservations" label="Manage Reservations" /> */}
-          <Tab value="users" label="Manage Users" /> {/* Tab for Users */}
-          <Tab value="bookings" label="Manage Bookings" /> {/* New Tab for Bookings */}
-        </Tabs>
-      </AppBar>
-      <Box
-        sx={{
-          marginTop: 2,
-          padding: 3,
-          backgroundColor: 'background.paper',
-          borderRadius: 2,
-          boxShadow: 3,
-        }}
-      >
-        {activeTab === 'accommodations' && (
-          <Paper elevation={3} sx={{ padding: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Accommodation Management
-            </Typography>
-            <AccommodationManagement />
-          </Paper>
-        )}
-        {/* {activeTab === 'reservations' && (
-          <Paper elevation={3} sx={{ padding: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Reservations Management
-            </Typography>
-            <ReservationsManagement />
-          </Paper>
-        )} */}
-        {activeTab === 'users' && (
-          <Paper elevation={3} sx={{ padding: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Users Management
-            </Typography>
-            <UsersManagement />
-          </Paper>
-        )}
-        {activeTab === 'bookings' && (
-          <Paper elevation={3} sx={{ padding: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Bookings Management
-            </Typography>
-            <Bookings />
-          </Paper>
-        )}
-      </Box>
-    </Container>
+    <div className="dashboard-container">
+      <nav className="dashboard-navbar">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`dashboard-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="dashboard-content">
+        <div className="dashboard-panel">
+          <h2>
+            {currentTab.panelIcon}
+            {currentTab.label}
+          </h2>
+          
+          <div className="stats-grid">
+            {currentTab.stats.map((stat, index) => (
+              <div key={index} className="stat-card">
+                <h3>{stat.label}</h3>
+                <div className="stat-value">{stat.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {currentTab.component}
+        </div>
+      </div>
+    </div>
   );
 };
 
