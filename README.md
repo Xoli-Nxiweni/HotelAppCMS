@@ -87,5 +87,6 @@ The application uses Vite for development and build processes. Configuration fil
 
 Contributions are welcome! Please submit a pull request or open an issue if you have suggestions or find any bugs.
 
-## License
+## quick access
 
+https://hotelappcms.onrender.com
