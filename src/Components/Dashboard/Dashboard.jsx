@@ -50,7 +50,7 @@ const Dashboard = () => {
   const currentTab = tabs.find(tab => tab.id === activeTab);
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" >
       <nav className="dashboard-navbar">
         {tabs.map(tab => (
           <button
